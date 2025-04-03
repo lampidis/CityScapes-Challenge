@@ -29,6 +29,8 @@ data/
 .vscode/
 venv_cityscapes/
 wandb/
+submit/
+checkpoints/
 
 
 # PyInstaller
