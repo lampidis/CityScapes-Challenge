@@ -41,8 +41,6 @@ from ViTSegmentation import ViTSegmentation
 from dice_loss import DiceLoss
 from process_data import AddFrequencyChannelTransform
 from collections import defaultdict
-import cv2
-from wrap_segmentation_dataset import WrapSegmentationDataset
 
 # Mapping class IDs to train IDs
 id_to_trainid = defaultdict(lambda: 255, {cls.id: cls.train_id for cls in Cityscapes.classes})
