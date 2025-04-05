@@ -4,11 +4,12 @@ import torch.nn.init as init
 from torchvision.transforms import functional as F
 
 class ViTSegmentation(nn.Module):
-    def __init__(self, vit_model, num_classes):
+    def __init__(self, num_classes):
         super(ViTSegmentation, self).__init__()
         
         self.convd = nn.Conv2d(4, 3, kernel_size=1, stride=1, padding=0)
-        self.vit = vit_model
+        self.vit = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', 
+                                  pretrained=True, force_reload=True)
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(384, 128, kernel_size=2, stride=2),
             nn.ReLU(),

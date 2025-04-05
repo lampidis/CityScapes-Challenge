@@ -31,6 +31,7 @@ from torchvision.transforms.v2 import (
     Resize,
     ToImage,
     ToDtype,
+    InterpolationMode,
 )
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -40,10 +41,14 @@ from ViTSegmentation import ViTSegmentation
 from dice_loss import DiceLoss
 from process_data import AddFrequencyChannelTransform
 from collections import defaultdict
-
+import cv2
+from wrap_segmentation_dataset import WrapSegmentationDataset
 
 # Mapping class IDs to train IDs
 id_to_trainid = defaultdict(lambda: 255, {cls.id: cls.train_id for cls in Cityscapes.classes})
+id_to_trainid[34] = 13
+id_to_trainid[35] = 13
+# id_to_trainid = {cls.id: cls.train_id for cls in Cityscapes.classes}
 def convert_to_train_id(label_img: torch.Tensor) -> torch.Tensor:
     return label_img.apply_(lambda x: id_to_trainid[x])
 
@@ -53,13 +58,12 @@ def convert_train_id_to_color(prediction: torch.Tensor) -> torch.Tensor:
     train_id_to_color[255] = (0, 0, 0)  # Assign black to ignored labels
     batch, _, height, width = prediction.shape
     color_image = torch.zeros((batch, 3, height, width), dtype=torch.uint8)
-    pred_classes = torch.argmax(prediction, dim=1)
-    
-    for train_id, color in train_id_to_color.items():
-        mask = pred_classes == train_id
 
+    for train_id, color in train_id_to_color.items():
+        mask = prediction == train_id
+                
         for i in range(3):
-            color_image[:, i][mask] = color[i]
+            color_image[:, i][mask.squeeze(1)] = color[i]
 
     return color_image
 
@@ -67,13 +71,13 @@ def get_args_parser():
 
     parser = ArgumentParser("Training script for a PyTorch dinov2 model")
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
-    parser.add_argument("--batch-size", type=int, default=32, help="Training batch size")
+    parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--num-workers", type=int, default=6, help="Number of workers for data loaders")
+    parser.add_argument("--num-workers", type=int, default=8, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="dinov2", help="Experiment ID for Weights & Biases")
-    parser.add_argument("--wandb-save", type=bool, default=False, help="Save wandb flag")
+    parser.add_argument("--wandb-save", type=bool, default=False, help="Save wandb logs flag")
 
     return parser
 
@@ -87,7 +91,7 @@ def main(args):
     ) if args.wandb_save else None
 
     # Create output directory if it doesn't exist
-    output_dir = os.path.join("../checkpoints", args.experiment_id)
+    output_dir = os.path.join("checkpoints", args.experiment_id)
     os.makedirs(output_dir, exist_ok=True)
 
     # Set seed for reproducability
@@ -104,37 +108,49 @@ def main(args):
         ToDtype(torch.float32, scale=True),
         Normalize((0.5,), (0.5,)),
     ])
+    target_transform = Compose([
+        ToImage(),
+        Resize((224, 224), interpolation=InterpolationMode.NEAREST),
+    ])
 
     # Load the dataset and make a split for training and validation
     train_cityscapes_dataset = Cityscapes(
-        args.data_dir, 
+        "./data/cityscapes", 
         split="train", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transform=transform,
+        target_transform=target_transform,
     )
     valid_cityscapes_dataset = Cityscapes(
-        args.data_dir, 
+        "./data/cityscapes", 
         split="val", 
         mode="fine", 
         target_type="semantic", 
-        transforms=transform
+        transform=transform, 
+        target_transform=target_transform,
     )
     train_wilddash_dataset = WilddashDataset2(
         "./data/wilddash2", 
         split="train",
-        transforms=transform
+        target_type="semantic",
+        transform=transform, 
+        target_transform=target_transform,
     )
     valid_wilddash_dataset = WilddashDataset2(
         "./data/wilddash2", 
         split="val",
-        transforms=transform
+        target_type="semantic",
+        transform=transform, 
+        target_transform=target_transform,
     )
     
-    train_dataset = ConcatDataset([train_cityscapes_dataset, train_wilddash_dataset])
-    valid_dataset = ConcatDataset([valid_cityscapes_dataset, valid_wilddash_dataset])
+    train_dataset = ConcatDataset([train_cityscapes_dataset, train_wilddash_dataset]) # train_cityscapes_dataset#
+    valid_dataset = ConcatDataset([valid_cityscapes_dataset, valid_wilddash_dataset]) # valid_cityscapes_dataset#
     print(f"Total train dataset size: {len(train_dataset)}")
     print(f"Total valid dataset size: {len(valid_dataset)}")
+    # train_dataset = WrapSegmentationDataset(train_dataset)
+    # valid_dataset = WrapSegmentationDataset(valid_dataset)
     
     train_dataloader = DataLoader(
         train_dataset, 
@@ -148,19 +164,21 @@ def main(args):
         shuffle=False,
         num_workers=args.num_workers
     )
-    return
+
     # Define the model
-    vit_model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', pretrained=True, force_reload=True)
-    model = ViTSegmentation(vit_model=vit_model, num_classes=19)
+    model = ViTSegmentation(num_classes=19)
     model.to(device)
     
     # Define the loss function
     criterion = DiceLoss(ignore_index=255)  # Ignore the void class
+    # criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
     optimizer = AdamW(model.parameters(), lr=args.lr)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
-
+    # optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+    freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
+    
     # Training loop
     best_valid_loss = float('inf')
     current_best_model_path = None
@@ -170,11 +188,9 @@ def main(args):
         model.train()
         for i, (images, labels) in tqdm(enumerate(train_dataloader)):
             
-            freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
+            # if i>20: break
+            
             images = freq_transform(images)
-
-            if i >= 10:
-                break  # Stop epoch after processing 10 batches
             
             labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
             images, labels = images.to(device), labels.to(device)
@@ -199,15 +215,15 @@ def main(args):
         with torch.no_grad():
             losses = []
             for i, (images, labels) in tqdm(enumerate(valid_dataloader)):
-                freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
+                
                 images = freq_transform(images)
                 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)
                 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
-                outputs = model(images)
                 
+                outputs = model(images)
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
@@ -216,30 +232,41 @@ def main(args):
 
                     predictions = predictions.unsqueeze(1)
                     labels = labels.unsqueeze(1)
-                    print(f"output prediction : {prediction.shape}")
-                    print(f"output labels     : {labels.shape}")
 
                     predictions = convert_train_id_to_color(predictions)
                     labels = convert_train_id_to_color(labels)
 
-                    print(f"output prediction to color: {prediction.shape}")
-                    print(f"output labels     to color: {labels.shape}")
                     predictions_img = make_grid(predictions.cpu(), nrow=8)
                     labels_img = make_grid(labels.cpu(), nrow=8)
 
                     predictions_img = predictions_img.permute(1, 2, 0).numpy()
                     labels_img = labels_img.permute(1, 2, 0).numpy()
+                    
+                    predictions = predictions.permute(0, 2, 3, 1).numpy()
+                    labels = labels.permute(0, 2, 3, 1).numpy()
 
+                    # print(f"prediction[0] : {predictions[0].shape}")
+                    # print(f"labels[0] : {labels[0].shape}")
+                    # Plot the image and label 
+                    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+                    # ax[0].imshow(predictions[0])
+                    # ax[0].set_title("Image")
+                    # ax[0].axis("off")
+                    # ax[1].imshow(labels[0])
+                    # ax[1].set_title("Label")
+                    # ax[1].axis("off")
+                    # plt.show()
+                    
                     wandb.log({
                         "predictions": [wandb.Image(predictions_img)],
                         "labels": [wandb.Image(labels_img)],
-                    }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
+                    }, step=(epoch + 1) * len(valid_dataloader) - 1) if args.wandb_save else None
             
             valid_loss = sum(losses) / len(losses)
             wandb.log({
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
-            scheduler.step(valid_loss)
+            # scheduler.step(valid_loss)
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
