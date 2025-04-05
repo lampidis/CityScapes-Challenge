@@ -143,12 +143,10 @@ def main(args):
         target_transform=target_transform,
     )
     
-    train_dataset = ConcatDataset([train_cityscapes_dataset, train_wilddash_dataset]) # train_cityscapes_dataset#
-    valid_dataset = ConcatDataset([valid_cityscapes_dataset, valid_wilddash_dataset]) # valid_cityscapes_dataset#
+    train_dataset = ConcatDataset([train_cityscapes_dataset, train_wilddash_dataset])
+    valid_dataset = ConcatDataset([valid_cityscapes_dataset, valid_wilddash_dataset])
     print(f"Total train dataset size: {len(train_dataset)}")
     print(f"Total valid dataset size: {len(valid_dataset)}")
-    # train_dataset = WrapSegmentationDataset(train_dataset)
-    # valid_dataset = WrapSegmentationDataset(valid_dataset)
     
     train_dataloader = DataLoader(
         train_dataset, 
@@ -165,6 +163,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
+    model.load_state_dict(torch.load("./checkpoints/dinov2_AdamW/best_model-epoch=0021-val_loss=0.5264018376668295.pth"))
     model.to(device)
     
     # Define the loss function
@@ -172,9 +171,9 @@ def main(args):
     # criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW(model.parameters(), lr=args.lr)
-    # optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+    # optimizer = AdamW(model.parameters(), lr=args.lr)
+    optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
     freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
     
     # Training loop
@@ -264,7 +263,7 @@ def main(args):
             wandb.log({
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
-            # scheduler.step(valid_loss)
+            scheduler.step(valid_loss)
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
