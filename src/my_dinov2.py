@@ -21,7 +21,7 @@ import torch.nn as nn
 from torch.optim import AdamW, SGD
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, ConcatDataset
-from torchvision.datasets import Cityscapes, wrap_dataset_for_transforms_v2
+from torchvision.datasets import Cityscapes
 from wilddashdataset import WilddashDataset2
 from torchvision.utils import make_grid
 from torchvision.transforms import functional as F
@@ -41,7 +41,7 @@ from ViTSegmentation import ViTSegmentation
 from dice_loss import DiceLoss
 from process_data import AddFrequencyChannelTransform
 from collections import defaultdict
-import segmentation_models_pytorch as smp
+# import segmentation_models_pytorch as smp
 
 # Mapping class IDs to train IDs
 id_to_trainid = defaultdict(lambda: 255, {cls.id: cls.train_id for cls in Cityscapes.classes})
