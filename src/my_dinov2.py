@@ -41,6 +41,7 @@ from ViTSegmentation import ViTSegmentation
 from dice_loss import DiceLoss
 from process_data import AddFrequencyChannelTransform
 from collections import defaultdict
+import segmentation_models_pytorch as smp
 
 # Mapping class IDs to train IDs
 id_to_trainid = defaultdict(lambda: 255, {cls.id: cls.train_id for cls in Cityscapes.classes})
@@ -161,9 +162,15 @@ def main(args):
         num_workers=args.num_workers
     )
 
+    # model = smp.Unet(
+    #     encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    #     encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+    #     in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+    #     classes=19,                      # model output channels (number of classes in your dataset)
+    # )
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    model.load_state_dict(torch.load("./checkpoints/dinov2_AdamW/best_model-epoch=0021-val_loss=0.5264018376668295.pth"))
+    # model.load_state_dict(torch.load("./checkpoints/dinov2/model.pth", map_location=torch.device('cpu')))
     model.to(device)
     
     # Define the loss function
@@ -171,9 +178,9 @@ def main(args):
     # criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    # optimizer = AdamW(model.parameters(), lr=args.lr)
-    optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
+    optimizer = AdamW([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr)
+    # optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
     freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
     
     # Training loop
@@ -185,7 +192,7 @@ def main(args):
         model.train()
         for i, (images, labels) in tqdm(enumerate(train_dataloader)):
             
-            # if i>20: break
+            # if i>1: break
             
             images = freq_transform(images)
             
@@ -239,20 +246,20 @@ def main(args):
                     predictions_img = predictions_img.permute(1, 2, 0).numpy()
                     labels_img = labels_img.permute(1, 2, 0).numpy()
                     
-                    predictions = predictions.permute(0, 2, 3, 1).numpy()
-                    labels = labels.permute(0, 2, 3, 1).numpy()
-
-                    # print(f"prediction[0] : {predictions[0].shape}")
-                    # print(f"labels[0] : {labels[0].shape}")
+                    print(f"prediction : {predictions_img.shape}")
+                    print(f"labels : {labels_img.shape}"
+                    # predictions = predictions.permute(0, 2, 3, 1).numpy()
+                    # labels = labels.permute(0, 2, 3, 1).numpy()
+)
                     # Plot the image and label 
-                    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-                    # ax[0].imshow(predictions[0])
-                    # ax[0].set_title("Image")
-                    # ax[0].axis("off")
-                    # ax[1].imshow(labels[0])
-                    # ax[1].set_title("Label")
-                    # ax[1].axis("off")
-                    # plt.show()
+                    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+                    ax[0].imshow(predictions_img)
+                    ax[0].set_title("Predictions")
+                    ax[0].axis("off")
+                    ax[1].imshow(labels_img)
+                    ax[1].set_title("Labels")
+                    ax[1].axis("off")
+                    plt.show()
                     
                     wandb.log({
                         "predictions": [wandb.Image(predictions_img)],
@@ -263,7 +270,7 @@ def main(args):
             wandb.log({
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
-            scheduler.step(valid_loss)
+            # scheduler.step(valid_loss)
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
