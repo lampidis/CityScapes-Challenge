@@ -273,12 +273,12 @@ def main(args):
             wandb.log({
                 "predictions": [wandb.Image(predictions_img)],
                 "labels": [wandb.Image(labels_img)],
-            }, step=(epoch + 1) * len(valid_dataloader) - 1) if args.wandb_save else None
+            }) #if args.wandb_save else None #, step=(epoch + 1) * len(valid_dataloader) - 1
             
             valid_loss = sum(losses) / len(losses)
             wandb.log({
                 "valid_loss": valid_loss
-            }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
+            }) #if args.wandb_save else None #, step=(epoch + 1) * len(train_dataloader) - 1
             # scheduler.step(valid_loss)
             print(f"validation loss: {valid_loss}")
             
