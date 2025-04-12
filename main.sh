@@ -2,7 +2,7 @@ wandb login
 
 python3 src/my_dinov2.py \
     --data-dir ./data/cityscapes \
-    --batch-size 16 \
+    --batch-size 32 \
     --epochs 60 \
     --lr 0.001 \
     --num-workers 10 \
