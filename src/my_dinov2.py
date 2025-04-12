@@ -27,12 +27,13 @@ from torchvision.utils import make_grid
 from torchvision.transforms import functional as F
 from torchvision.transforms.v2 import (
     Compose,
-    Normalize,
-    Resize,
     ToImage,
+    Resize,
     ToDtype,
+    Normalize,
     InterpolationMode,
 )
+import albumentations as A
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -70,10 +71,10 @@ def get_args_parser():
 
     parser = ArgumentParser("Training script for a PyTorch dinov2 model")
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
-    parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
+    parser.add_argument("--batch-size", type=int, default=16, help="Training batch size")
     parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
-    parser.add_argument("--num-workers", type=int, default=8, help="Number of workers for data loaders")
+    parser.add_argument("--num-workers", type=int, default=6, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="dinov2", help="Experiment ID for Weights & Biases")
     parser.add_argument("--wandb-save", type=bool, default=False, help="Save wandb logs flag")
@@ -101,15 +102,25 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Define the transforms to apply to the data
+    mean = [0.485, 0.456, 0.406] # from ImageNet dataset
+    std = [0.229, 0.224, 0.225] # from ImageNet dataset
+    img_size = 644
     transform = Compose([
         ToImage(),
-        Resize((224, 224)),
+        Resize((img_size, img_size)),
+        # A.PadIfNeeded(
+        #     min_height=img_size+4, 
+        #     min_width=img_size+4,
+        #     position='center',
+        #     value=0,
+        #     mask_value=0
+        # ),
         ToDtype(torch.float32, scale=True),
-        Normalize((0.5,), (0.5,)),
+        Normalize(mean, std),
     ])
     target_transform = Compose([
         ToImage(),
-        Resize((224, 224), interpolation=InterpolationMode.NEAREST),
+        Resize((img_size, img_size), interpolation=InterpolationMode.NEAREST),
     ])
 
     # Load the dataset and make a split for training and validation
@@ -170,7 +181,6 @@ def main(args):
     # )
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    # model.load_state_dict(torch.load("./checkpoints/dinov2/model.pth", map_location=torch.device('cpu')))
     model.to(device)
     
     # Define the loss function
@@ -179,7 +189,7 @@ def main(args):
 
     # Define the optimizer
     optimizer = AdamW([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr)
-    # optimizer = SGD(model.parameters(), lr=args.lr, momentum=0.9)
+    # optimizer = SGD([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr, momentum=0.9)
     # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
     freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
     
@@ -251,20 +261,20 @@ def main(args):
                     # predictions = predictions.permute(0, 2, 3, 1).numpy()
                     # labels = labels.permute(0, 2, 3, 1).numpy()
 
-                    # Plot the image and label 
-                    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-                    # ax[0].imshow(predictions_img)
-                    # ax[0].set_title("Predictions")
-                    # ax[0].axis("off")
-                    # ax[1].imshow(labels_img)
-                    # ax[1].set_title("Labels")
-                    # ax[1].axis("off")
-                    # plt.show()
+            # Plot the image and label 
+            fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+            ax[0].imshow(predictions_img)
+            ax[0].set_title("Predictions")
+            ax[0].axis("off")
+            ax[1].imshow(labels_img)
+            ax[1].set_title("Labels")
+            ax[1].axis("off")
+            plt.show()
                     
-                    wandb.log({
-                        "predictions": [wandb.Image(predictions_img)],
-                        "labels": [wandb.Image(labels_img)],
-                    }, step=(epoch + 1) * len(valid_dataloader) - 1) if args.wandb_save else None
+            wandb.log({
+                "predictions": [wandb.Image(predictions_img)],
+                "labels": [wandb.Image(labels_img)],
+            }, step=(epoch + 1) * len(valid_dataloader) - 1) if args.wandb_save else None
             
             valid_loss = sum(losses) / len(losses)
             wandb.log({
