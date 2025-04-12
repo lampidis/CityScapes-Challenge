@@ -33,7 +33,6 @@ from torchvision.transforms.v2 import (
     Normalize,
     InterpolationMode,
 )
-import albumentations as A
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
