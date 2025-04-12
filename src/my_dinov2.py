@@ -261,14 +261,14 @@ def main(args):
                     # labels = labels.permute(0, 2, 3, 1).numpy()
 
             # Plot the image and label 
-            fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-            ax[0].imshow(predictions_img)
-            ax[0].set_title("Predictions")
-            ax[0].axis("off")
-            ax[1].imshow(labels_img)
-            ax[1].set_title("Labels")
-            ax[1].axis("off")
-            plt.show()
+            # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+            # ax[0].imshow(predictions_img)
+            # ax[0].set_title("Predictions")
+            # ax[0].axis("off")
+            # ax[1].imshow(labels_img)
+            # ax[1].set_title("Labels")
+            # ax[1].axis("off")
+            # plt.show()
                     
             wandb.log({
                 "predictions": [wandb.Image(predictions_img)],

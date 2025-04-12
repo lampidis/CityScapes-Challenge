@@ -79,21 +79,17 @@ class BNHead(nn.Module):
             inputs = [inputs[i] for i in self.in_index]
             
             # Resizing shenanigans
-            print("before", *(x.shape for x in inputs))
             if self.resize_factors is not None:
                 assert len(self.resize_factors) == len(inputs), (len(self.resize_factors), len(inputs))
                 inputs = [
                     resize(input=x, scale_factor=f, mode="bilinear" if f >= 1 else "area")
                     for x, f in zip(inputs, self.resize_factors)
                 ]
-            print("after", *(x.shape for x in inputs))
             upsampled_inputs = [
                 resize(input_data=x, size=inputs[0].shape[2:], mode="bilinear", align_corners=self.align_corners)
                 for x in inputs
             ]
-            print("after upsampled", *(x.shape for x in upsampled_inputs))
             inputs = torch.cat(upsampled_inputs, dim=1)
-            print("after cat", *(x.shape for x in inputs))
         elif self.input_transform == "multiple_select":
             inputs = [inputs[i] for i in self.in_index]
         else:
@@ -109,11 +105,8 @@ class BNHead(nn.Module):
     
     def forward(self, inputs):
         """Forward function."""
-        print("bnhead forward", *(x.shape for x in inputs))
         output = self._forward_feature(inputs)
-        print("bnhead _forward_feature", *(x.shape for x in inputs))
         output = self.cls_seg(output)
-        print("bnhead output", *(x.shape for x in output))
         return output
     
 
@@ -137,7 +130,6 @@ class ViTSegmentation(nn.Module):
         namespace = {}
         exec(cfg_str, namespace)
         model_dict = namespace['model']
-        print(f"self.vit.blocks : {len(self.vit.blocks)}")
         self.vit.forward = partial(
             self.vit.get_intermediate_layers,
             n=model_dict['backbone']['out_indices'],
@@ -156,14 +148,11 @@ class ViTSegmentation(nn.Module):
         # print(f"Shape input: {x.shape}")
         x = self.convd(x)
         feats = self.vit(x)#.forward_features(x)['x_prenorm'][:, 1:, :]
-        print(f"Shape encoder: {len(feats)}")
         # b, n, c = feats.shape
         # h = w = int(n ** 0.5)
         # feats = feats.reshape(b, h, w, c).permute(0, 3, 1, 2)
         output = self.decoder(feats)
-        print(f"Shape decoder: {output.shape}")
         output = torch.nn.functional.interpolate(output, size=x.shape[2:], mode="bilinear", align_corners=False)
-        print(f"Shape output: {output.shape}")
         return output
 
 # if __name__ == '__main__':
