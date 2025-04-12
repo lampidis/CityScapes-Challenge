@@ -5,7 +5,7 @@ import urllib
 # from torchvision.transforms import functional as F
 import torch.nn.functional as F
 from functools import partial
-from torchinfo import summary
+# from torchinfo import summary
 
 
 def resize(input_data,
@@ -166,11 +166,11 @@ class ViTSegmentation(nn.Module):
         print(f"Shape output: {output.shape}")
         return output
 
-if __name__ == '__main__':
-    model = ViTSegmentation()
-    summary(
-        model, 
-        (1, 4, 644, 644),
-        col_names=('input_size', 'output_size', 'num_params'),
-        row_settings=['var_names']
-    )
+# if __name__ == '__main__':
+#     model = ViTSegmentation()
+#     summary(
+#         model, 
+#         (1, 4, 644, 644),
+#         col_names=('input_size', 'output_size', 'num_params'),
+#         row_settings=['var_names']
+#     )
