@@ -172,12 +172,6 @@ def main(args):
         num_workers=args.num_workers
     )
 
-    # model = smp.Unet(
-    #     encoder_name="resnet34",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-    #     encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
-    #     in_channels=4,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-    #     classes=19,                      # model output channels (number of classes in your dataset)
-    # )
     # Define the model
     model = ViTSegmentation(num_classes=19)
     model.to(device)
@@ -187,10 +181,11 @@ def main(args):
     # criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
 
     # Define the optimizer
-    optimizer = AdamW([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr)
+    optimizer = AdamW(model.parameters(), lr=args.lr)
+    # optimizer = AdamW([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr)
     # optimizer = SGD([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr, momentum=0.9)
     # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
-    freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
+    # freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
     
     # Training loop
     best_valid_loss = float('inf')
@@ -203,7 +198,7 @@ def main(args):
             
             # if i>1: break
             
-            images = freq_transform(images)
+            # images = freq_transform(images)
             
             labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
             images, labels = images.to(device), labels.to(device)
@@ -229,7 +224,7 @@ def main(args):
             losses = []
             for i, (images, labels) in tqdm(enumerate(valid_dataloader)):
                 
-                images = freq_transform(images)
+                # images = freq_transform(images)
                 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)

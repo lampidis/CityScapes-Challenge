@@ -7,35 +7,46 @@ import torch.nn.functional as F
 from functools import partial
 # from torchinfo import summary
 
-
-def resize(input_data,
-       size=None,
-       scale_factor=None,
-       mode='nearest',
-       align_corners=None,
-       warning=True):
-    if warning:
-        if size is not None and align_corners:
-            input_h, input_w = tuple(int(x) for x in input.shape[2:])
-            output_h, output_w = tuple(int(x) for x in size)
-    return F.interpolate(input_data, size, scale_factor, mode, align_corners)
-
 def load_config_from_url(url: str) -> str:
     with urllib.request.urlopen(url) as f:
         return f.read().decode()
     
+
+
+class AddFrequencyChannelTransform:
+    def __init__(self, kernel_size=5, sigma=1.0):
+        self.kernel = self.gaussian_kernel(kernel_size, sigma)  # Gaussian kernel
+        
+    def gaussian_kernel(self, size: int, sigma: float):
+        """Create a Gaussian kernel"""
+        x = torch.linspace(-sigma, sigma, size)
+        x = torch.exp(-x**2 / (2 * sigma**2))
+        kernel = torch.outer(x, x)
+        kernel = kernel / kernel.sum()  # Normalize the kernel
+        return kernel.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
+
+    def __call__(self, batch_img):
+        # Convert to grayscale (mean across RGB channels)
+        gray_batch = batch_img.mean(dim=1, keepdim=True)
+        
+        # Apply Gaussian convolution to the grayscale images
+        gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
+        
+        freq = gray_batch - gray_convolved
+        # Concatenate the grayscale image (after convolution) to the original RGB image
+        # concatenated_batch = torch.cat((batch_img, freq), dim=1)
+        
+        return freq
+
 class BNHead(nn.Module):
     """Just a batchnorm."""
 
-    def __init__(self, num_classes=19, resize_factors=None, **kwargs):
+    def __init__(self, num_classes=19, **kwargs):
         super().__init__(**kwargs)
         # HARDCODED IN_CHANNELS FOR NOW.
         self.in_channels = 1536 #*4 # sum([feature.shape[1] for feature in selected_features])
-        self.bn = nn.SyncBatchNorm(self.in_channels)
-        self.resize_factors = resize_factors
+        self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
-        self.input_transform = 'resize_concat'
-        self.align_corners = False
 
         self.conv_seg = nn.Conv2d(self.in_channels, num_classes, kernel_size=1)
 
@@ -61,39 +72,9 @@ class BNHead(nn.Module):
         Returns:
             Tensor: The transformed inputs
         """
-
-        if self.input_transform == "resize_concat":
-            # accept lists (for cls token)
-            input_list = []
-            for x in inputs:
-                if isinstance(x, list):
-                    input_list.extend(x)
-                else:
-                    input_list.append(x)
-            inputs = input_list
-            # an image descriptor can be a local descriptor with resolution 1x1
-            for i, x in enumerate(inputs):
-                if len(x.shape) == 2:
-                    inputs[i] = x[:, :, None, None]
-            # select indices
-            inputs = [inputs[i] for i in self.in_index]
-            
-            # Resizing shenanigans
-            if self.resize_factors is not None:
-                assert len(self.resize_factors) == len(inputs), (len(self.resize_factors), len(inputs))
-                inputs = [
-                    resize(input=x, scale_factor=f, mode="bilinear" if f >= 1 else "area")
-                    for x, f in zip(inputs, self.resize_factors)
-                ]
-            upsampled_inputs = [
-                resize(input_data=x, size=inputs[0].shape[2:], mode="bilinear", align_corners=self.align_corners)
-                for x in inputs
-            ]
-            inputs = torch.cat(upsampled_inputs, dim=1)
-        elif self.input_transform == "multiple_select":
-            inputs = [inputs[i] for i in self.in_index]
-        else:
-            inputs = inputs[self.in_index]
+        inputs = [inputs[i] for i in self.in_index]
+        
+        inputs = torch.cat(inputs, dim=1)
 
         return inputs
 
@@ -121,9 +102,11 @@ class ViTSegmentation(nn.Module):
         head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
         # head_checkpoint_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_head.pth"
 
-        self.convd = nn.Conv2d(4, 3, kernel_size=1, stride=1, padding=0)
-        self.vit = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14', pretrained=True)
-        
+        self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
+        for param in self.vit.parameters():
+            param.requires_grad = False
+        # self.decoder = nn.Conv2d(384, num_classes, kernel_size=1, stride=1, padding=0)
+
         cfg_str = load_config_from_url(head_config_url)
         
         # Define a namespace dict to get the config and then extract it
@@ -132,28 +115,41 @@ class ViTSegmentation(nn.Module):
         model_dict = namespace['model']
         self.vit.forward = partial(
             self.vit.get_intermediate_layers,
-            n=model_dict['backbone']['out_indices'],
+            n= model_dict['backbone']['out_indices'],
             reshape=True,
         )
         
         self.decoder = BNHead(num_classes)
-        self._initialize_weights()
+        self.freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
 
-    def _initialize_weights(self):
-        # Convd layer initialization
-        init.xavier_uniform_(self.convd.weight)
-        init.zeros_(self.convd.bias)
-            
+    
+    def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
+        B, C, h, w = logits.shape
+        
+        # Step 2: Get predictions and one-hot masks
+        soft_masks = F.softmax(logits, dim=1)  # [B, C, H, W]
+        freq_weight = frequency_map.expand_as(soft_masks)  # [B, C, H, W]
+
+        # Blend frequency into the soft masks
+        guided_masks = soft_masks * (1.0 + alpha * freq_weight)
+
+        # Optional: Normalize across class channel
+        guided_masks = guided_masks / (guided_masks.sum(dim=1, keepdim=True) + 1e-8)
+
+        return guided_masks
+
     def forward(self, x):
         # print(f"Shape input: {x.shape}")
-        x = self.convd(x)
         feats = self.vit(x)#.forward_features(x)['x_prenorm'][:, 1:, :]
         # b, n, c = feats.shape
         # h = w = int(n ** 0.5)
         # feats = feats.reshape(b, h, w, c).permute(0, 3, 1, 2)
-        output = self.decoder(feats)
-        output = torch.nn.functional.interpolate(output, size=x.shape[2:], mode="bilinear", align_corners=False)
-        return output
+        decoded = self.decoder(feats)
+        output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
+        
+        freq_x = self.freq_transform(x)
+        freq_guided_output = self.frequency_guided_predictions(output, freq_x)
+        return freq_guided_output
 
 # if __name__ == '__main__':
 #     model = ViTSegmentation()
