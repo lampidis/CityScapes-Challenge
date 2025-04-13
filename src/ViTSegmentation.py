@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 import urllib
-# from torchvision.transforms import functional as F
+
 import torch.nn.functional as F
 from functools import partial
 # from torchinfo import summary
@@ -120,7 +120,8 @@ class ViTSegmentation(nn.Module):
         )
         
         self.decoder = BNHead(num_classes)
-        self.freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0).to('cuda')
+        
+        self.kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
 
     
     def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
@@ -138,6 +139,24 @@ class ViTSegmentation(nn.Module):
 
         return guided_masks
 
+    def gaussian_kernel(self, kernel_size=5, sigma=1.0):
+        """Create a Gaussian kernel"""
+        x = torch.linspace(-sigma, sigma, kernel_size)
+        x = torch.exp(-x**2 / (2 * sigma**2))
+        kernel = torch.outer(x, x)
+        kernel = kernel / kernel.sum()  # Normalize the kernel
+        return kernel.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
+
+    def frequency_response(self, batch_img):
+        # Convert to grayscale (mean across RGB channels)
+        gray_batch = batch_img.mean(dim=1, keepdim=True)
+        # Apply Gaussian convolution to the grayscale images
+        gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
+        
+        freq = gray_batch - gray_convolved
+        
+        return freq
+    
     def forward(self, x):
         # print(f"Shape input: {x.shape}")
         feats = self.vit(x)#.forward_features(x)['x_prenorm'][:, 1:, :]
@@ -147,7 +166,7 @@ class ViTSegmentation(nn.Module):
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
-        freq_x = self.freq_transform(x)
+        freq_x = self.frequency_response(x)
         freq_guided_output = self.frequency_guided_predictions(output, freq_x)
         return freq_guided_output
 
