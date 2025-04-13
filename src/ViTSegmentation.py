@@ -13,8 +13,9 @@ def load_config_from_url(url: str) -> str:
     
 
 
-class AddFrequencyChannelTransform:
+class AddFrequencyChannelTransform(nn.Module):
     def __init__(self, kernel_size=5, sigma=1.0):
+        super().__init__()
         self.kernel = self.gaussian_kernel(kernel_size, sigma)  # Gaussian kernel
         
     def gaussian_kernel(self, size: int, sigma: float):
