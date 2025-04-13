@@ -28,7 +28,6 @@ class AddFrequencyChannelTransform:
     def __call__(self, batch_img):
         # Convert to grayscale (mean across RGB channels)
         gray_batch = batch_img.mean(dim=1, keepdim=True)
-        
         # Apply Gaussian convolution to the grayscale images
         gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
         
@@ -120,7 +119,7 @@ class ViTSegmentation(nn.Module):
         )
         
         self.decoder = BNHead(num_classes)
-        self.freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
+        self.freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0).to('cuda')
 
     
     def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
