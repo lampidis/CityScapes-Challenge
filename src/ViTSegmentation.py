@@ -169,9 +169,9 @@ class ViTSegmentation(nn.Module):
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
-        freq_x = self.frequency_response(x)
-        freq_guided_output = self.frequency_guided_predictions(output, freq_x)
-        return freq_guided_output
+        # freq_x = self.frequency_response(x)
+        # freq_guided_output = self.frequency_guided_predictions(output, freq_x)
+        return output
 
 # if __name__ == '__main__':
 #     model = ViTSegmentation()
