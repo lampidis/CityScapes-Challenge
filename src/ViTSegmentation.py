@@ -121,7 +121,10 @@ class ViTSegmentation(nn.Module):
         
         self.decoder = BNHead(num_classes)
         
-        self.kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
+        kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
+        self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
+        self.gaussian_filter.weight.data = kernel
+        self.gaussian_filter.weight.requires_grad = False
 
     
     def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
@@ -151,7 +154,7 @@ class ViTSegmentation(nn.Module):
         # Convert to grayscale (mean across RGB channels)
         gray_batch = batch_img.mean(dim=1, keepdim=True)
         # Apply Gaussian convolution to the grayscale images
-        gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
+        gray_convolved = self.gaussian_filter(gray_batch)
         
         freq = gray_batch - gray_convolved
         
