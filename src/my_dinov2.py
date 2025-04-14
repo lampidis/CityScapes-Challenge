@@ -192,10 +192,10 @@ def main(args):
     current_best_model_path = None
     for epoch in range(args.epochs):
         print(f"Epoch {epoch+1:04}/{args.epochs:04}")
+        
         # Training
         model.train()
         for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-            
             # if i>1: break
             
             # images = freq_transform(images)
@@ -255,25 +255,25 @@ def main(args):
                     # predictions = predictions.permute(0, 2, 3, 1).numpy()
                     # labels = labels.permute(0, 2, 3, 1).numpy()
 
-            # Plot the image and label 
-            # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-            # ax[0].imshow(predictions_img)
-            # ax[0].set_title("Predictions")
-            # ax[0].axis("off")
-            # ax[1].imshow(labels_img)
-            # ax[1].set_title("Labels")
-            # ax[1].axis("off")
-            # plt.show()
-                    
-            wandb.log({
-                "predictions": [wandb.Image(predictions_img)],
-                "labels": [wandb.Image(labels_img)],
-            }) #if args.wandb_save else None #, step=(epoch + 1) * len(valid_dataloader) - 1
+                    # Plot the image and label 
+                    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+                    # ax[0].imshow(predictions_img)
+                    # ax[0].set_title("Predictions")
+                    # ax[0].axis("off")
+                    # ax[1].imshow(labels_img)
+                    # ax[1].set_title("Labels")
+                    # ax[1].axis("off")
+                    # plt.show()
+                            
+                    wandb.log({
+                        "predictions": [wandb.Image(predictions_img)],
+                        "labels": [wandb.Image(labels_img)],
+                    }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
             
             valid_loss = sum(losses) / len(losses)
             wandb.log({
                 "valid_loss": valid_loss
-            }) #if args.wandb_save else None #, step=(epoch + 1) * len(train_dataloader) - 1
+            }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
             # scheduler.step(valid_loss)
             print(f"validation loss: {valid_loss}")
             
