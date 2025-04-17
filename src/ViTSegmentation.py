@@ -101,7 +101,6 @@ class BNHead(nn.Module):
         x = self._forward_feature(inputs)
         x = self.upsample1(x)
         x = self.upsample2(x)
-        x = self.upsample3(x)
         output = self.cls_seg(x)
         return output
     
