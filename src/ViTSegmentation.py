@@ -40,9 +40,9 @@ class AddFrequencyChannelTransform(nn.Module):
 
 
 class UpsampleConv(nn.Module):
-    def __init__(self, in_channels=4):
+    def __init__(self, channels):
         super(UpsampleConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
@@ -99,7 +99,7 @@ class BNHead(nn.Module):
     def forward(self, inputs):
         """Forward function."""
         x = self._forward_feature(inputs)
-        X = self.cls_seg(x)
+        x = self.cls_seg(x)
         x = self.upsample1(x)
         output = self.upsample2(x)
         return output
