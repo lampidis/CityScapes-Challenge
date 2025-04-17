@@ -38,17 +38,30 @@ class AddFrequencyChannelTransform(nn.Module):
         
         return freq
 
+
+class UpsampleConv(nn.Module):
+    def __init__(self, in_channels=4):
+        super(UpsampleConv, self).__init__()
+        self.conv = nn.Conv2d(in_channels, in_channels//2, kernel_size=3, padding=1)
+
+    def forward(self, x):
+        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
+        x = self.conv(x)
+        return x
+
+
 class BNHead(nn.Module):
     """Just a batchnorm."""
-
-    def __init__(self, num_classes=19, **kwargs):
-        super().__init__(**kwargs)
-        # HARDCODED IN_CHANNELS FOR NOW.
-        self.in_channels = 1536 #*4 # sum([feature.shape[1] for feature in selected_features])
+    def __init__(self, num_classes=19):
+        super().__init__()
+        self.in_channels = 1536
         self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
-
-        self.conv_seg = nn.Conv2d(self.in_channels, num_classes, kernel_size=1)
+        print(self.in_channels)
+        self.upsample1 = UpsampleConv(self.in_channels)
+        self.upsample2 = UpsampleConv(self.in_channels//2)
+        self.upsample3 = UpsampleConv(self.in_channels//4)
+        self.conv_seg = nn.Conv2d(self.in_channels//8, num_classes, stride=2, kernel_size=1)
 
     def _forward_feature(self, inputs):
         """Forward function for feature maps before classifying each pixel with
@@ -86,8 +99,11 @@ class BNHead(nn.Module):
     
     def forward(self, inputs):
         """Forward function."""
-        output = self._forward_feature(inputs)
-        output = self.cls_seg(output)
+        x = self._forward_feature(inputs)
+        x = self.upsample1(x)
+        x = self.upsample2(x)
+        x = self.upsample3(x)
+        output = self.cls_seg(x)
         return output
     
 
