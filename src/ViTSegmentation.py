@@ -42,7 +42,7 @@ class AddFrequencyChannelTransform(nn.Module):
 class UpsampleConv(nn.Module):
     def __init__(self, in_channels=4):
         super(UpsampleConv, self).__init__()
-        self.conv = nn.Conv2d(in_channels, in_channels//2, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
@@ -59,8 +59,8 @@ class BNHead(nn.Module):
         self.in_index = [0, 1, 2, 3]
         print(self.in_channels)
         self.upsample1 = UpsampleConv(self.in_channels)
-        self.upsample2 = UpsampleConv(self.in_channels//2)
-        self.conv_seg = nn.Conv2d(self.in_channels//4, num_classes, stride=2, kernel_size=1)
+        self.upsample2 = UpsampleConv(self.in_channels)
+        self.conv_seg = nn.Conv2d(self.in_channels, num_classes, stride=2, kernel_size=1)
 
     def _forward_feature(self, inputs):
         """Forward function for feature maps before classifying each pixel with
