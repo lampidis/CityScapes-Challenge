@@ -57,9 +57,9 @@ class BNHead(nn.Module):
         self.in_channels = 1536
         self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
-        print(self.in_channels)
-        self.upsample1 = UpsampleConv(self.in_channels)
-        self.upsample2 = UpsampleConv(self.in_channels)
+        
+        self.upsample1 = UpsampleConv(num_classes)
+        self.upsample2 = UpsampleConv(num_classes)
         self.conv_seg = nn.Conv2d(self.in_channels, num_classes, stride=2, kernel_size=1)
 
     def _forward_feature(self, inputs):
@@ -99,9 +99,9 @@ class BNHead(nn.Module):
     def forward(self, inputs):
         """Forward function."""
         x = self._forward_feature(inputs)
+        X = self.cls_seg(x)
         x = self.upsample1(x)
-        x = self.upsample2(x)
-        output = self.cls_seg(x)
+        output = self.upsample2(x)
         return output
     
 
