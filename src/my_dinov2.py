@@ -106,6 +106,7 @@ def main(args):
     img_size = 644
     transform = Compose([
         ToImage(),
+        Resize((img_size, img_size)),
         ToDtype(torch.float32, scale=True),
         Normalize(mean, std),
     ])
