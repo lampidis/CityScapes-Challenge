@@ -60,8 +60,7 @@ class BNHead(nn.Module):
         print(self.in_channels)
         self.upsample1 = UpsampleConv(self.in_channels)
         self.upsample2 = UpsampleConv(self.in_channels//2)
-        self.upsample3 = UpsampleConv(self.in_channels//4)
-        self.conv_seg = nn.Conv2d(self.in_channels//8, num_classes, stride=2, kernel_size=1)
+        self.conv_seg = nn.Conv2d(self.in_channels//4, num_classes, stride=2, kernel_size=1)
 
     def _forward_feature(self, inputs):
         """Forward function for feature maps before classifying each pixel with
