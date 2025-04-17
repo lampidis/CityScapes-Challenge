@@ -7,5 +7,5 @@ python3 src/my_dinov2.py \
     --lr 0.001 \
     --num-workers 10 \
     --seed 42 \
-    --experiment-id "dinov2_Freq" \
+    --experiment-id "dinov2_upsample" \
     --wandb-save True \
