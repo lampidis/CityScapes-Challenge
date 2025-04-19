@@ -3,8 +3,10 @@ import torch.nn as nn
 import torch.nn.init as init
 import urllib
 
+import numpy as np
 import torch.nn.functional as F
 from functools import partial
+import src.mahalanobis as mh
 # from torchinfo import summary
 
 def load_config_from_url(url: str) -> str:
@@ -117,12 +119,15 @@ class ViTSegmentation(nn.Module):
         # head_checkpoint_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_head.pth"
 
         self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
+        self.decoder = BNHead(num_classes)
+        
         for param in self.vit.parameters():
             param.requires_grad = False
         # self.decoder = nn.Conv2d(384, num_classes, kernel_size=1, stride=1, padding=0)
 
         cfg_str = load_config_from_url(head_config_url)
-        
+        self.mean = [0]*4
+        self.cov = [0]*4
         # Define a namespace dict to get the config and then extract it
         namespace = {}
         exec(cfg_str, namespace)
@@ -133,7 +138,6 @@ class ViTSegmentation(nn.Module):
             reshape=True,
         )
         
-        self.decoder = BNHead(num_classes)
         
         kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
         self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
@@ -174,12 +178,26 @@ class ViTSegmentation(nn.Module):
         
         return freq
     
-    def forward(self, x):
+    def forward(self, x, itr):
         # print(f"Shape input: {x.shape}")
-        feats = self.vit(x)#.forward_features(x)['x_prenorm'][:, 1:, :]
-        # b, n, c = feats.shape
-        # h = w = int(n ** 0.5)
-        # feats = feats.reshape(b, h, w, c).permute(0, 3, 1, 2)
+        feats = self.vit(x)
+        
+        mh_distances = []
+        for i in range(len(feats)):
+            if itr==-1: #valid
+                distances = []
+                for feature in feats[i]:
+                    distances.append(mh.mahalanobis_distance(feature, self.mean[i], self.cov[i]))
+                mh_distances.append(min(distances))
+            elif itr==0:
+                self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
+            else:
+                self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
+        
+        # Combine normalized distances
+        print(f"mh distances {mh_distances}")
+        final_ood_score = np.mean(mh_distances)
+        print(f"ood score: {final_ood_score}")
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         

@@ -189,7 +189,7 @@ def main(args):
         # Training
         model.train()
         for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-            # if i>1: break
+            if i>1: break
             
             # images = freq_transform(images)
             
@@ -199,7 +199,7 @@ def main(args):
             labels = labels.long().squeeze(1)  # Remove channel dimension
 
             optimizer.zero_grad()
-            outputs = model(images)
+            outputs = model(images, i)
             
             loss = criterion(outputs, labels)
             loss.backward()
@@ -224,7 +224,7 @@ def main(args):
                 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
                 
-                outputs = model(images)
+                outputs = model(images, -1)
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
