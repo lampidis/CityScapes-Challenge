@@ -107,13 +107,6 @@ def main(args):
     transform = Compose([
         ToImage(),
         Resize((img_size, img_size)),
-        # A.PadIfNeeded(
-        #     min_height=img_size+4, 
-        #     min_width=img_size+4,
-        #     position='center',
-        #     value=0,
-        #     mask_value=0
-        # ),
         ToDtype(torch.float32, scale=True),
         Normalize(mean, std),
     ])
