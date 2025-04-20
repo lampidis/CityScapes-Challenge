@@ -70,13 +70,13 @@ def get_args_parser():
 
     parser = ArgumentParser("Training script for a PyTorch dinov2 model")
     parser.add_argument("--data-dir", type=str, default="./data/cityscapes", help="Path to the training data")
-    parser.add_argument("--batch-size", type=int, default=16, help="Training batch size")
-    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
+    parser.add_argument("--batch-size", type=int, default=64, help="Training batch size")
+    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--lr", type=float, default=0.01, help="Learning rate")
     parser.add_argument("--num-workers", type=int, default=6, help="Number of workers for data loaders")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
     parser.add_argument("--experiment-id", type=str, default="dinov2", help="Experiment ID for Weights & Biases")
-    parser.add_argument("--wandb-save", type=bool, default=False, help="Save wandb logs flag")
+    parser.add_argument("--wandb-save", type=bool, default=True, help="Save wandb logs flag")
 
     return parser
 
@@ -167,6 +167,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
+    model.load_state_dict(torch.load("./checkpoints/dinov2/final_model-epoch=0004-val_loss=0.692563083436754.pth"))
     model.to(device)
     
     # Define the loss function
@@ -189,7 +190,7 @@ def main(args):
         # Training
         model.train()
         for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-            if i>1: break
+            # if i>1: break
             
             # images = freq_transform(images)
             
@@ -245,18 +246,6 @@ def main(args):
                     
                     print(f"prediction : {predictions_img.shape}")
                     print(f"labels : {labels_img.shape}")
-                    # predictions = predictions.permute(0, 2, 3, 1).numpy()
-                    # labels = labels.permute(0, 2, 3, 1).numpy()
-
-                    # Plot the image and label 
-                    # fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-                    # ax[0].imshow(predictions_img)
-                    # ax[0].set_title("Predictions")
-                    # ax[0].axis("off")
-                    # ax[1].imshow(labels_img)
-                    # ax[1].set_title("Labels")
-                    # ax[1].axis("off")
-                    # plt.show()
                             
                     wandb.log({
                         "predictions": [wandb.Image(predictions_img)],

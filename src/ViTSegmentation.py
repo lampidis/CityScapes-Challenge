@@ -6,7 +6,7 @@ import urllib
 import numpy as np
 import torch.nn.functional as F
 from functools import partial
-import src.mahalanobis as mh
+import mahalanobis as mh
 # from torchinfo import summary
 
 def load_config_from_url(url: str) -> str:
@@ -114,21 +114,18 @@ class ViTSegmentation(nn.Module):
         HEAD_TYPE = "ms" # in ("ms, "linear")
         DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
         backbone_name = "dinov2_vits14"
-        
         head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
-        # head_checkpoint_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_head.pth"
 
         self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
         self.decoder = BNHead(num_classes)
         
         for param in self.vit.parameters():
             param.requires_grad = False
-        # self.decoder = nn.Conv2d(384, num_classes, kernel_size=1, stride=1, padding=0)
 
         cfg_str = load_config_from_url(head_config_url)
         self.mean = [0]*4
         self.cov = [0]*4
-        # Define a namespace dict to get the config and then extract it
+        # namespace dict to get the config and then extract it
         namespace = {}
         exec(cfg_str, namespace)
         model_dict = namespace['model']
@@ -137,12 +134,10 @@ class ViTSegmentation(nn.Module):
             n= model_dict['backbone']['out_indices'],
             reshape=True,
         )
-        
-        
-        kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
-        self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
-        self.gaussian_filter.weight.data = kernel
-        self.gaussian_filter.weight.requires_grad = False
+        # kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
+        # self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
+        # self.gaussian_filter.weight.data = kernel
+        # self.gaussian_filter.weight.requires_grad = False
 
     
     def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
@@ -165,39 +160,34 @@ class ViTSegmentation(nn.Module):
         x = torch.linspace(-sigma, sigma, kernel_size)
         x = torch.exp(-x**2 / (2 * sigma**2))
         kernel = torch.outer(x, x)
-        kernel = kernel / kernel.sum()  # Normalize the kernel
+        kernel = kernel / kernel.sum()
         return kernel.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
 
     def frequency_response(self, batch_img):
-        # Convert to grayscale (mean across RGB channels)
         gray_batch = batch_img.mean(dim=1, keepdim=True)
-        # Apply Gaussian convolution to the grayscale images
         gray_convolved = self.gaussian_filter(gray_batch)
-        
         freq = gray_batch - gray_convolved
         
         return freq
     
     def forward(self, x, itr):
-        # print(f"Shape input: {x.shape}")
         feats = self.vit(x)
         
         mh_distances = []
         for i in range(len(feats)):
-            if itr==-1: #valid
-                distances = []
-                for feature in feats[i]:
-                    distances.append(mh.mahalanobis_distance(feature, self.mean[i], self.cov[i]))
-                mh_distances.append(min(distances))
+            if itr==-1: # validation
+                mh_distances.append(mh.mahalanobis_distance(feats[i], self.mean[i], self.cov[i]))
+                print(f"mh distances {mh_distances}")
+                final_ood_score = np.mean(mh_distances[i])
+                print(f"ood score: {final_ood_score}")
             elif itr==0:
                 self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
             else:
                 self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
+                np.savez('mean_cov.npz', mean=self.mean, cov=self.cov)
         
+        # print(f"dataset per layer mean:{self.mean}, cov:{self.cov}")
         # Combine normalized distances
-        print(f"mh distances {mh_distances}")
-        final_ood_score = np.mean(mh_distances)
-        print(f"ood score: {final_ood_score}")
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
