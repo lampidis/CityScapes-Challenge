@@ -177,9 +177,12 @@ class ViTSegmentation(nn.Module):
         mh_distances = []
         for i in range(len(feats)):
             if itr==-1: # validation
-                mh_distances.append(mh.mahalanobis_distance(feats[i], self.mean[i], self.cov[i]))
+                distances = []
+                for feat in feats[i]
+                    distances.append(mh.mahalanobis_distance(feats[i], self.mean[i], self.cov[i]))
+                mh_distances.append(min(distances))
                 print(f"mh distances {mh_distances}")
-                final_ood_score = np.mean(mh_distances[i])
+                final_ood_score = np.mean(mh_distances)
                 print(f"ood score: {final_ood_score}")
             elif itr==0:
                 self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
