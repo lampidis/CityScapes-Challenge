@@ -167,7 +167,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    # model.load_state_dict(torch.load("./checkpoints/dinov2/final_model-epoch=0004-val_loss=0.692563083436754.pth"))
+    model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.30942484074168736.pth"))
     model.to(device)
     
     # Define the loss function
