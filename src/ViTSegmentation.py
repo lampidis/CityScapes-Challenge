@@ -185,7 +185,7 @@ class ViTSegmentation(nn.Module):
                 self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
             else:
                 self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
-                np.savez('mean_cov.npz', mean=self.mean, cov=self.cov)
+                np.savez('mean_cov.npz', mean=self.mean.cpu().numpy(), cov=self.cov.cpu().numpy())
         
         # print(f"dataset per layer mean:{self.mean}, cov:{self.cov}")
         # Combine normalized distances
