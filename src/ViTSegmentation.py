@@ -134,10 +134,11 @@ class ViTSegmentation(nn.Module):
             n= model_dict['backbone']['out_indices'],
             reshape=True,
         )
-        # kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
-        # self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
-        # self.gaussian_filter.weight.data = kernel
-        # self.gaussian_filter.weight.requires_grad = False
+        self.freq_conv = nn.Conv2d(num_classes+1, num_classes, kernel_size=3, padding=1)
+        kernel = self.gaussian_kernel(kernel_size=5, sigma=1)  # Gaussian kernel
+        self.gaussian_filter = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=5, padding=5 // 2, bias=False)
+        self.gaussian_filter.weight.data = kernel
+        self.gaussian_filter.weight.requires_grad = False
 
     
     def frequency_guided_predictions(self, logits, frequency_map, alpha=1.0):
@@ -191,7 +192,10 @@ class ViTSegmentation(nn.Module):
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
-        # freq_x = self.frequency_response(x)
+        freq_x = self.frequency_response(x)
+        freq = torch.cat((output, freq_x), dim=1)
+        output = self.freq_conv(freq)
+        
         # freq_guided_output = self.frequency_guided_predictions(output, freq_x)
         return output
 
