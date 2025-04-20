@@ -14,29 +14,24 @@ def load_config_from_url(url: str) -> str:
         return f.read().decode()
     
 
-
 class AddFrequencyChannelTransform(nn.Module):
     def __init__(self, kernel_size=5, sigma=1.0):
         super().__init__()
-        self.kernel = self.gaussian_kernel(kernel_size, sigma)  # Gaussian kernel
+        self.kernel = self.gaussian_kernel(kernel_size, sigma)
         
     def gaussian_kernel(self, size: int, sigma: float):
         """Create a Gaussian kernel"""
         x = torch.linspace(-sigma, sigma, size)
         x = torch.exp(-x**2 / (2 * sigma**2))
         kernel = torch.outer(x, x)
-        kernel = kernel / kernel.sum()  # Normalize the kernel
-        return kernel.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
+        kernel = kernel / kernel.sum()
+        return kernel.unsqueeze(0).unsqueeze(0)
 
     def __call__(self, batch_img):
-        # Convert to grayscale (mean across RGB channels)
         gray_batch = batch_img.mean(dim=1, keepdim=True)
-        # Apply Gaussian convolution to the grayscale images
         gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
         
         freq = gray_batch - gray_convolved
-        # Concatenate the grayscale image (after convolution) to the original RGB image
-        # concatenated_batch = torch.cat((batch_img, freq), dim=1)
         
         return freq
 
@@ -123,8 +118,10 @@ class ViTSegmentation(nn.Module):
             param.requires_grad = False
 
         cfg_str = load_config_from_url(head_config_url)
-        self.mean = [0]*4
-        self.cov = [0]*4
+        loaded = np.load('../mean_cov.npz')
+        self.mean = loaded['mean']
+        self.cov = loaded['cov']
+        
         # namespace dict to get the config and then extract it
         namespace = {}
         exec(cfg_str, namespace)
@@ -176,24 +173,12 @@ class ViTSegmentation(nn.Module):
         
         mh_distances = []
         for i in range(len(feats)):
-            if itr==-1: # validation
-                distances = []
-                for feat in feats[i]:
-                    distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
-                mh_distances.append(min(distances))
-                print(f"mh distances {mh_distances}")
-                final_ood_score = min(mh_distances)
-                print(f"ood score: {final_ood_score}")
-            elif itr==0:
-                self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
-            else:
-                self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
-                mean_cpu = [tensor.cpu().numpy() for tensor in self.mean]
-                cov_cpu = [tensor.cpu().numpy() for tensor in self.cov]
-                np.savez('mean_cov.npz', mean=mean_cpu, cov=cov_cpu)
+            distances = []
+            for feat in feats[i]:
+                distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
+            mh_distances.append(min(distances))
+        final_ood_score = min(mh_distances)
         
-        # print(f"dataset per layer mean:{self.mean}, cov:{self.cov}")
-        # Combine normalized distances
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
@@ -201,8 +186,8 @@ class ViTSegmentation(nn.Module):
         freq = torch.cat((output, freq_x), dim=1)
         output = self.freq_conv(freq)
         
-        # freq_guided_output = self.frequency_guided_predictions(output, freq_x)
-        return output
+        in_dist = False if final_ood_score > 20 else True
+        return output, in_dist
 
 # if __name__ == '__main__':
 #     model = ViTSegmentation()

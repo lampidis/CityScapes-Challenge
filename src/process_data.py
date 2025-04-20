@@ -4,17 +4,28 @@ import torch.nn as nn
 from torchvision import transforms
 from torchvision.transforms import functional as F
 
-from PIL import Image
-import scipy.ndimage as ndi
-
+from torchvision.transforms.v2 import (
+    Compose,
+    ToImage,
+    Resize,
+    ToDtype,
+    Normalize,
+)
 
 def preprocess(img):
     """preproces image:
     input is a PIL image.
     Output image should be pytorch tensor that is compatible with your model"""
-    img = F.resize(img, size=(224, 224), interpolation=transforms.functional.InterpolationMode.BILINEAR)
-    trans = transforms.Compose([transforms.ToTensor()])
-    img = trans(img)
+    mean = [0.485, 0.456, 0.406] # from ImageNet dataset
+    std = [0.229, 0.224, 0.225] # from ImageNet dataset
+    img_size = 644
+    transform = Compose([
+        ToImage(),
+        Resize((img_size, img_size)),
+        ToDtype(torch.float32, scale=True),
+        Normalize(mean, std),
+    ])
+    img = transform(img)
     img = img.unsqueeze(0)
     img = img.to(torch.float32) / 255.0
     return img
@@ -33,37 +44,3 @@ def postprocess(prediction, shape):
     prediction_numpy = prediction_numpy.squeeze()
 
     return prediction_numpy
-
-
-class AddFrequencyChannelTransform:
-    def __init__(self, kernel_size=5, sigma=1.0):
-        self.kernel = self.gaussian_kernel(kernel_size, sigma)  # Gaussian kernel
-        
-    def gaussian_kernel(self, size: int, sigma: float):
-        """Create a Gaussian kernel"""
-        x = torch.linspace(-sigma, sigma, size)
-        x = torch.exp(-x**2 / (2 * sigma**2))
-        kernel = torch.outer(x, x)
-        kernel = kernel / kernel.sum()  # Normalize the kernel
-        return kernel.unsqueeze(0).unsqueeze(0)  # Add batch and channel dims
-
-    def __call__(self, batch_img):
-        # Convert to grayscale (mean across RGB channels)
-        gray_batch = batch_img.mean(dim=1, keepdim=True)
-        
-        # Apply Gaussian convolution to the grayscale images
-        gray_convolved = nn.functional.conv2d(gray_batch, self.kernel, padding=self.kernel.size(2)//2)
-        
-        freq = gray_batch - gray_convolved
-        # Concatenate the grayscale image (after convolution) to the original RGB image
-        concatenated_batch = torch.cat((batch_img, freq), dim=1)
-        
-        return concatenated_batch
-
-
-
-
-
-
-
-

@@ -172,14 +172,9 @@ def main(args):
     
     # Define the loss function
     criterion = DiceLoss(ignore_index=255)  # Ignore the void class
-    # criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore the void class
-
+    
     # Define the optimizer
     optimizer = AdamW(model.parameters(), lr=args.lr)
-    # optimizer = AdamW([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr)
-    # optimizer = SGD([*model.convd.parameters(), *model.decoder.parameters()], lr=args.lr, momentum=0.9)
-    # scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
-    # freq_transform = AddFrequencyChannelTransform(kernel_size=5, sigma=1.0)
     
     # Training loop
     best_valid_loss = float('inf')
@@ -188,37 +183,33 @@ def main(args):
         print(f"Epoch {epoch+1:04}/{args.epochs:04}")
         
         # Training
-        model.train()
-        for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-            # if i>1: break
+        # model.train()
+        # for i, (images, labels) in tqdm(enumerate(train_dataloader)):
+        #     # if i>1: break
             
-            # images = freq_transform(images)
+        #     labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
+        #     images, labels = images.to(device), labels.to(device)
             
-            labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
-            images, labels = images.to(device), labels.to(device)
-            
-            labels = labels.long().squeeze(1)  # Remove channel dimension
+        #     labels = labels.long().squeeze(1)  # Remove channel dimension
 
-            optimizer.zero_grad()
-            outputs = model(images, i)
+        #     optimizer.zero_grad()
+        #     outputs = model(images, i)
             
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        #     loss = criterion(outputs, labels)
+        #     loss.backward()
+        #     optimizer.step()
 
-            wandb.log({
-                "train_loss": loss.item(),
-                "learning_rate": optimizer.param_groups[0]['lr'],
-                "epoch": epoch + 1,
-            }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
+        #     wandb.log({
+        #         "train_loss": loss.item(),
+        #         "learning_rate": optimizer.param_groups[0]['lr'],
+        #         "epoch": epoch + 1,
+        #     }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
             
         # Validation
         model.eval()
         with torch.no_grad():
             losses = []
             for i, (images, labels) in tqdm(enumerate(valid_dataloader)):
-                
-                # images = freq_transform(images)
                 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)
@@ -256,7 +247,7 @@ def main(args):
             wandb.log({
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
-            # scheduler.step(valid_loss)
+
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
