@@ -4,7 +4,7 @@ This is a project for the CityScapes-Challenge
 
 Name: Loukas Lampidis
 
-Student number: 2212277
+Student email: l.lampidis@student.tue.nl
 
 CodaLab name: lampidis
 
