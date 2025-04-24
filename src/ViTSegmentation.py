@@ -210,7 +210,7 @@ class ViTSegmentation(nn.Module):
             if itr==-1:
                 distances = []
                 for feat in feats[i]:
-                    distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
+                    distances.append(mh.mahalanobis_distance(feat, self.mean[i].cpu().numpy(), self.cov[i].cpu().numpy()))
                 mh_distances.append(min(distances))
                 final_ood_score = min(mh_distances)
             # elif itr==0:
