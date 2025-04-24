@@ -149,11 +149,11 @@ class ViTSegmentation(nn.Module):
 
         cfg_str = load_config_from_url(head_config_url)
         
-        loaded = torch.load('mean_cov.pt')
-        self.mean = loaded['mean']
-        self.cov = loaded['cov']
-        # self.mean = [0]*4
-        # self.cov = [0]*4
+        # loaded = torch.load('mean_cov.pt')
+        # self.mean = loaded['mean']
+        # self.cov = loaded['cov']
+        self.mean = [0]*4
+        self.cov = [0]*4
         
         # namespace dict to get the config and then extract it
         namespace = {}
