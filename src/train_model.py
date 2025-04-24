@@ -102,7 +102,7 @@ def main(args):
     # Define the transforms to apply to the data
     mean = [0.485, 0.456, 0.406] # from ImageNet dataset
     std = [0.229, 0.224, 0.225] # from ImageNet dataset
-    img_size = 824
+    img_size = 896
     transform = Compose([
         ToImage(),
         Resize((img_size, img_size)),
