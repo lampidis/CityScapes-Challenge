@@ -7,6 +7,7 @@ import numpy as np
 import torch.nn.functional as F
 from functools import partial
 import mahalanobis as mh
+# from mmseg.ops import resize
 # from torchinfo import summary
 
 def load_config_from_url(url: str) -> str:
@@ -49,15 +50,16 @@ class UpsampleConv(nn.Module):
 
 class BNHead(nn.Module):
     """Just a batchnorm."""
-    def __init__(self, num_classes=19):
+    def __init__(self, resize_factors=None, num_classes=19):
         super().__init__()
         self.in_channels = 1536
         self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
         
-        self.upsample1 = UpsampleConv(num_classes)
-        self.upsample2 = UpsampleConv(num_classes)
-        self.conv_seg = nn.Conv2d(self.in_channels, num_classes, stride=2, kernel_size=1)
+        # self.upsample1 = UpsampleConv(num_classes)
+        # self.upsample2 = UpsampleConv(num_classes)
+        self.conv_seg = nn.Conv2d(self.in_channels, num_classes, kernel_size=1)
+        self.resize_factors = resize_factors
 
     def _forward_feature(self, inputs):
         """Forward function for feature maps before classifying each pixel with
@@ -81,9 +83,37 @@ class BNHead(nn.Module):
         Returns:
             Tensor: The transformed inputs
         """
+
+        # accept lists (for cls token)
+        input_list = []
+        for x in inputs:
+            if isinstance(x, list):
+                input_list.extend(x)
+            else:
+                input_list.append(x)
+        inputs = input_list
+        # an image descriptor can be a local descriptor with resolution 1x1
+        for i, x in enumerate(inputs):
+            if len(x.shape) == 2:
+                inputs[i] = x[:, :, None, None]
+        # select indices
         inputs = [inputs[i] for i in self.in_index]
-        
-        inputs = torch.cat(inputs, dim=1)
+        # Resizing shenanigans
+        # print("before", *(x.shape for x in inputs))
+        if self.resize_factors is not None:
+            assert len(self.resize_factors) == len(inputs), (len(self.resize_factors), len(inputs))
+            inputs = [
+                F.interpolate(x, scale_factor=2, mode='bilinear' if f >= 1 else "area")
+                # resize(input=x, scale_factor=f, mode="bilinear" if f >= 1 else "area")
+                for x, f in zip(inputs, self.resize_factors)
+            ]
+            # print("after", *(x.shape for x in inputs))
+        upsampled_inputs = [
+            F.interpolate(x, size=inputs[0].shape[2:], mode='bilinear', align_corners=False)
+            # resize(input=x, size=inputs[0].shape[2:], mode="bilinear", align_corners=self.align_corners)
+            for x in inputs
+        ]
+        inputs = torch.cat(upsampled_inputs, dim=1)
 
         return inputs
 
@@ -118,7 +148,7 @@ class ViTSegmentation(nn.Module):
             param.requires_grad = False
 
         cfg_str = load_config_from_url(head_config_url)
-        loaded = np.load('../mean_cov.npz')
+        loaded = np.load('mean_cov.npz')
         self.mean = loaded['mean']
         self.cov = loaded['cov']
         

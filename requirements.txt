@@ -15,3 +15,4 @@ tqdm
 torchaug
 torchinfo
 albumentations
+mmsegmentation

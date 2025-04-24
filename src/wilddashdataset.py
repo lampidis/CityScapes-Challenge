@@ -7,7 +7,7 @@ class WilddashDataset2(object):
     """
     Wilddash dataset loader.
     Assumes the following folder structure:
-    wilddash/
+    wilddash2/
             /images/*.jpg
             /labels/*.png
             /random_split/{split}.txt
@@ -54,9 +54,6 @@ class WilddashDataset2(object):
     def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         image = Image.open(self.images[index]).convert('RGB')
         target = Image.open(self.targets[index])
-
-        # if self.target_type == 'semantic':
-        #     target = torch.tensor(target, dtype=torch.long)
 
         if self.transforms is not None:
             image, target = self.transforms(image, target)

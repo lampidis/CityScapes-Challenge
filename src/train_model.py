@@ -39,7 +39,6 @@ import matplotlib.pyplot as plt
 # from unet import Model
 from ViTSegmentation import ViTSegmentation
 from dice_loss import DiceLoss
-from process_data import AddFrequencyChannelTransform
 from collections import defaultdict
 # import segmentation_models_pytorch as smp
 
@@ -167,7 +166,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.30942484074168736.pth"))
+    # model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.30942484074168736.pth"))
     model.to(device)
     
     # Define the loss function
