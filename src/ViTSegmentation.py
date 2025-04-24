@@ -52,7 +52,7 @@ class BNHead(nn.Module):
     """Just a batchnorm."""
     def __init__(self, resize_factors=None, num_classes=19):
         super().__init__()
-        self.in_channels = 3072
+        self.in_channels = 1536
         self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
         
@@ -159,7 +159,6 @@ class ViTSegmentation(nn.Module):
         namespace = {}
         exec(cfg_str, namespace)
         model_dict = namespace['model']
-        print(model_dict['backbone']['out_indices'])
         self.vit.forward = partial(
             self.vit.get_intermediate_layers,
             n= model_dict['backbone']['out_indices'],
