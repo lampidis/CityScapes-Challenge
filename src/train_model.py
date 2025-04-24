@@ -182,27 +182,27 @@ def main(args):
         print(f"Epoch {epoch+1:04}/{args.epochs:04}")
         
         # Training
-        # model.train()
-        # for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-        #     # if i>1: break
+        model.train()
+        for i, (images, labels) in tqdm(enumerate(train_dataloader)):
+            # if i>1: break
             
-        #     labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
-        #     images, labels = images.to(device), labels.to(device)
+            labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
+            images, labels = images.to(device), labels.to(device)
             
-        #     labels = labels.long().squeeze(1)  # Remove channel dimension
+            labels = labels.long().squeeze(1)  # Remove channel dimension
 
-        #     optimizer.zero_grad()
-        #     outputs = model(images, i)
+            optimizer.zero_grad()
+            outputs = model(images, i)
             
-        #     loss = criterion(outputs, labels)
-        #     loss.backward()
-        #     optimizer.step()
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-        #     wandb.log({
-        #         "train_loss": loss.item(),
-        #         "learning_rate": optimizer.param_groups[0]['lr'],
-        #         "epoch": epoch + 1,
-        #     }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
+            wandb.log({
+                "train_loss": loss.item(),
+                "learning_rate": optimizer.param_groups[0]['lr'],
+                "epoch": epoch + 1,
+            }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
             
         # Validation
         model.eval()

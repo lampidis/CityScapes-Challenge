@@ -202,13 +202,22 @@ class ViTSegmentation(nn.Module):
         feats = self.vit(x)
         
         mh_distances = []
-        for i in range(len(feats)):
-            distances = []
-            for feat in feats[i]:
-                distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
-            mh_distances.append(min(distances))
-        final_ood_score = min(mh_distances)
         
+        for i in range(len(feats)):
+            if itr==-1:
+                distances = []
+                for feat in feats[i]:
+                    distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
+                mh_distances.append(min(distances))
+                final_ood_score = min(mh_distances)
+            elif itr==0:
+                self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
+            else:
+                self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
+                mean_cpu = [tensor.cpu().numpy() for tensor in self.mean]
+                cov_cpu = [tensor.cpu().numpy() for tensor in self.cov]
+                np.savez('mean_cov.npz', mean=mean_cpu, cov=cov_cpu)
+
         decoded = self.decoder(feats)
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
         
