@@ -5,12 +5,12 @@ def batch_distribution(x):
     # x torch Shape: [Batch, Features, Height, Weight]
     x = x.permute(0, 2, 3, 1)
     x = x.reshape(-1, x.shape[-1])
-    mean = x.mean(dim=0).cpu().numpy()
-    x_centered = x - mean
+    x_mean = x.mean(dim=0)
+    x_centered = x - x_mean
     n_samples = x_centered.shape[0]
     cov = (x_centered.T @ x_centered) / (n_samples - 1)
 
-    return mean, cov
+    return x_mean, cov
 
 def update_global_distribution(global_mean, global_cov, features, itr):
     [B,F,H,W] = features.shape
@@ -32,7 +32,8 @@ def update_global_distribution(global_mean, global_cov, features, itr):
 def mahalanobis_distance(x, mean, cov):
     x = x.view(x.size(0), -1)
     x_mean = x.mean(dim=1)
-    
+    print(f"x_mean {type(x_mean)}")
+    print(f"mean {type(mean)}")
     centered_x = x_mean - mean
     cov_inv = torch.linalg.pinv(cov)
     diff = centered_x - mean
