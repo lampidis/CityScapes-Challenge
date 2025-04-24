@@ -148,9 +148,12 @@ class ViTSegmentation(nn.Module):
             param.requires_grad = False
 
         cfg_str = load_config_from_url(head_config_url)
-        loaded = np.load('mean_cov.npz')
-        self.mean = loaded['mean']
-        self.cov = loaded['cov']
+        
+        # loaded = np.load('mean_cov.npz')
+        # self.mean = loaded['mean']
+        # self.cov = loaded['cov']
+        self.mean = [0]*4
+        self.cov = [0]*4
         
         # namespace dict to get the config and then extract it
         namespace = {}
