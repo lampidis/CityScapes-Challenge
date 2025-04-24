@@ -205,7 +205,7 @@ class ViTSegmentation(nn.Module):
         feats = self.vit(x)
         
         mh_distances = []
-        
+        final_ood_score = 0
         for i in range(len(feats)):
             if itr==-1:
                 distances = []
