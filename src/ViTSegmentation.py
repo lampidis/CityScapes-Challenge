@@ -149,11 +149,11 @@ class ViTSegmentation(nn.Module):
 
         cfg_str = load_config_from_url(head_config_url)
         
-        # loaded = torch.load('mean_cov.pt')
-        # self.mean = loaded['mean']
-        # self.cov = loaded['cov']
-        self.mean = [0]*4
-        self.cov = [0]*4
+        loaded = torch.load('mean_cov.pt')
+        self.mean = loaded['mean']
+        self.cov = loaded['cov']
+        # self.mean = [0]*4
+        # self.cov = [0]*4
         
         # namespace dict to get the config and then extract it
         namespace = {}
@@ -213,9 +213,9 @@ class ViTSegmentation(nn.Module):
                     distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
                 mh_distances.append(min(distances))
                 final_ood_score = min(mh_distances)
-            # elif itr==0:
-            #     self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
-            # else:
+            elif itr==0:
+                self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
+            else:
                 self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
                 mean_cpu = [tensor for tensor in self.mean]
                 cov_cpu = [tensor for tensor in self.cov]
