@@ -31,7 +31,7 @@ def update_global_distribution(global_mean, global_cov, features, itr):
 
 def mahalanobis_distance(x, mean, cov):
     x = x.view(x.size(0), -1)
-    x_mean = x.mean(dim=1)
+    x_mean = x.mean(dim=1).numpy()
     print(f"x_mean {type(x_mean)}")
     print(f"mean {type(mean)}")
     centered_x = x_mean - mean
