@@ -149,11 +149,11 @@ class ViTSegmentation(nn.Module):
 
         cfg_str = load_config_from_url(head_config_url)
         
-        loaded = np.load('mean_cov.npz')
-        self.mean = loaded['mean']
-        self.cov = loaded['cov']
-        # self.mean = [0]*4
-        # self.cov = [0]*4
+        # loaded = torch.load('mean_cov.pt')
+        # self.mean = loaded['mean']
+        # self.cov = loaded['cov']
+        self.mean = [0]*4
+        self.cov = [0]*4
         
         # namespace dict to get the config and then extract it
         namespace = {}
@@ -216,10 +216,10 @@ class ViTSegmentation(nn.Module):
             # elif itr==0:
             #     self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
             # else:
-            #     self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
-            #     mean_cpu = [tensor.cpu().numpy() for tensor in self.mean]
-            #     cov_cpu = [tensor.cpu().numpy() for tensor in self.cov]
-            #     np.savez('mean_cov.npz', mean=mean_cpu, cov=cov_cpu)
+                self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
+                mean_cpu = [tensor for tensor in self.mean]
+                cov_cpu = [tensor for tensor in self.cov]
+                torch.save({'mean': mean_cpu, 'cov': cov_cpu}, 'mean_cov.pt')
 
         decoded = self.decoder(feats, )
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
