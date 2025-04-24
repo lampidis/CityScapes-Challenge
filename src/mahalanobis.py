@@ -31,7 +31,7 @@ def update_global_distribution(global_mean, global_cov, features, itr):
 
 def mahalanobis_distance(x, mean, cov):
     x = x.view(x.size(0), -1)
-    x_mean = x.mean(dim=1).cpu.numpy()
+    x_mean = x.mean(dim=1).cpu().numpy()
     
     centered_x = x_mean - mean
     cov_inv = torch.linalg.pinv(cov)
