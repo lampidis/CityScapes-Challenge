@@ -126,9 +126,9 @@ class BNHead(nn.Module):
     def forward(self, inputs):
         """Forward function."""
         x = self._forward_feature(inputs)
-        x = self.cls_seg(x)
-        x = self.upsample1(x)
-        output = self.upsample2(x)
+        output = self.cls_seg(x)
+        # x = self.upsample1(x)
+        # output = self.upsample2(x)
         return output
     
 
