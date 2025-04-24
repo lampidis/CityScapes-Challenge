@@ -229,7 +229,7 @@ class ViTSegmentation(nn.Module):
         output = self.freq_conv(freq)
         
         in_dist = False if final_ood_score > 20 else True
-        return output, in_dist
+        return output
 
 # if __name__ == '__main__':
 #     model = ViTSegmentation()
