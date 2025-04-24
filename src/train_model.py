@@ -102,7 +102,7 @@ def main(args):
     # Define the transforms to apply to the data
     mean = [0.485, 0.456, 0.406] # from ImageNet dataset
     std = [0.229, 0.224, 0.225] # from ImageNet dataset
-    img_size = 896
+    img_size = 644
     transform = Compose([
         ToImage(),
         Resize((img_size, img_size)),
@@ -166,7 +166,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    # model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.30942484074168736.pth"))
+    model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.653671983215544.pth"))
     model.to(device)
     
     # Define the loss function
