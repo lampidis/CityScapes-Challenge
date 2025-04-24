@@ -138,7 +138,7 @@ class ViTSegmentation(nn.Module):
         HEAD_DATASET = "voc2012" # in ("ade20k", "voc2012")
         HEAD_TYPE = "ms" # in ("ms, "linear")
         DINOV2_BASE_URL = "https://dl.fbaipublicfiles.com/dinov2"
-        backbone_name = "dinov2_vitb14"
+        backbone_name = "dinov2_vits14"
         head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
 
         self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
