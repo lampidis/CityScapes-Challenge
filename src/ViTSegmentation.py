@@ -142,7 +142,7 @@ class ViTSegmentation(nn.Module):
         head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
 
         self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
-        self.decoder = BNHead(resize_factors=[2,2,2,2], num_classes)
+        self.decoder = BNHead(resize_factors=[2,2,2,2], num_classes=19)
         
         for param in self.vit.parameters():
             param.requires_grad = False
