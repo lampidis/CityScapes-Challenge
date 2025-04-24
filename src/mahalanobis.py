@@ -5,7 +5,7 @@ def batch_distribution(x):
     # x torch Shape: [Batch, Features, Height, Weight]
     x = x.permute(0, 2, 3, 1)
     x = x.reshape(-1, x.shape[-1])
-    mean = x.mean(dim=0)
+    mean = x.mean(dim=0).cpu().numpy()
     x_centered = x - mean
     n_samples = x_centered.shape[0]
     cov = (x_centered.T @ x_centered) / (n_samples - 1)
