@@ -218,7 +218,6 @@ class ViTSegmentation(nn.Module):
                 distances.append(mh.mahalanobis_distance(feats[i][b], self.mean[i], self.cov[i]))
             print(f"distances len: {len(distances)}")
             mh_distances.append(min(distances))
-        final_ood_score = min(mh_distances)
             # elif itr==0:
             #     self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
             # else:
@@ -233,9 +232,11 @@ class ViTSegmentation(nn.Module):
         freq_x = self.frequency_response(x)
         freq = torch.cat((output, freq_x), dim=1)
         output = self.freq_conv(freq)
+        
+        final_ood_score = mh_distances[0]
         print(f"mh_distances {len(mh_distances)}")
         print(f"final_ood_score {final_ood_score}")
-        in_dist = False if final_ood_score > 20 else True
+        in_dist = False if final_ood_score > 19 else True
         return output, mh_distances
 
 # if __name__ == '__main__':
