@@ -193,7 +193,7 @@ def main(args):
             labels = labels.long().squeeze(1)  # Remove channel dimension
 
             optimizer.zero_grad()
-            outputs = model(images)
+            outputs, distances = model(images)
             
             loss = criterion(outputs, labels)
             loss.backward()
