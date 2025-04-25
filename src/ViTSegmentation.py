@@ -208,7 +208,6 @@ class ViTSegmentation(nn.Module):
         
         mh_distances = []
         final_ood_score = 0
-        print(f" feats size: {feats.size}")
         print(f" feats shape: {feats[0].shape}")
         print(f" feats len: {len(feats)}")
         for i in range(len(feats)):
