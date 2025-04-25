@@ -249,8 +249,8 @@ def main(args):
             wandb.log({
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
-
-            print(f"mean_loaded: min:{[min(all_distances)]} max:{[max(all_distances)]}, mean:{[torch.mean(all_distances)]}")
+            print(len(all_distances))
+            print(f"mean_loaded: min:{[min(all_distances)]} max:{[max(all_distances)]}, mean:{[np.mean(all_distances.cpu().numpy())]}")
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
