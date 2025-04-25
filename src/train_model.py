@@ -25,6 +25,7 @@ from torchvision.datasets import Cityscapes
 from wilddashdataset import WilddashDataset2
 from torchvision.utils import make_grid
 from torchvision.transforms import functional as F
+import numpy as np
 from torchvision.transforms.v2 import (
     Compose,
     ToImage,
@@ -166,7 +167,7 @@ def main(args):
 
     # Define the model
     model = ViTSegmentation(num_classes=19)
-    model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.653671983215544.pth"))
+    # model.load_state_dict(torch.load("./checkpoints/dinov2_upsample/best_model-epoch=0005-val_loss=0.653671983215544.pth"))
     model.to(device)
     
     # Define the loss function
@@ -182,32 +183,33 @@ def main(args):
         print(f"Epoch {epoch+1:04}/{args.epochs:04}")
         
         # Training
-        model.train()
-        for i, (images, labels) in tqdm(enumerate(train_dataloader)):
-            # if i>1: break
+        # model.train()
+        # for i, (images, labels) in tqdm(enumerate(train_dataloader)):
+        #     # if i>1: break
             
-            labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
-            images, labels = images.to(device), labels.to(device)
+        #     labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
+        #     images, labels = images.to(device), labels.to(device)
             
-            labels = labels.long().squeeze(1)  # Remove channel dimension
+        #     labels = labels.long().squeeze(1)  # Remove channel dimension
 
-            optimizer.zero_grad()
-            outputs = model(images, i)
+        #     optimizer.zero_grad()
+        #     outputs = model(images, i)
             
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        #     loss = criterion(outputs, labels)
+        #     loss.backward()
+        #     optimizer.step()
 
-            wandb.log({
-                "train_loss": loss.item(),
-                "learning_rate": optimizer.param_groups[0]['lr'],
-                "epoch": epoch + 1,
-            }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
+        #     wandb.log({
+        #         "train_loss": loss.item(),
+        #         "learning_rate": optimizer.param_groups[0]['lr'],
+        #         "epoch": epoch + 1,
+        #     }, step=epoch * len(train_dataloader) + i) if args.wandb_save else None
             
         # Validation
         model.eval()
         with torch.no_grad():
             losses = []
+            all_distances = []
             for i, (images, labels) in tqdm(enumerate(valid_dataloader)):
                 
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
@@ -215,7 +217,8 @@ def main(args):
                 
                 labels = labels.long().squeeze(1)  # Remove channel dimension
                 
-                outputs = model(images, -1)
+                outputs, distances = model(images)
+                all_distances.append(distances)
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
@@ -247,6 +250,7 @@ def main(args):
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
 
+            print(f"mean_loaded: min:{[min(all_distances)]} max:{[max(all_distances)]}, mean:{[np.mean(all_distances)]}")
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:

@@ -7,7 +7,8 @@ import numpy as np
 import torch.nn.functional as F
 from functools import partial
 import mahalanobis as mh
-# from mmseg.ops import resize
+from saved_tensors import mean, cov
+
 # from torchinfo import summary
 
 def load_config_from_url(url: str) -> str:
@@ -142,7 +143,8 @@ class ViTSegmentation(nn.Module):
         head_config_url = f"{DINOV2_BASE_URL}/{backbone_name}/{backbone_name}_{HEAD_DATASET}_{HEAD_TYPE}_config.py"
 
         self.vit = torch.hub.load('facebookresearch/dinov2', backbone_name, pretrained=True)
-        self.decoder = BNHead(resize_factors=[2,2,2,2], num_classes=19)
+        scales =  [1.75, 2., 2., 2.] #[1.0, 1.32, 1.73]
+        self.decoder = BNHead(resize_factors=scales, num_classes=19)
         
         for param in self.vit.parameters():
             param.requires_grad = False
@@ -152,8 +154,8 @@ class ViTSegmentation(nn.Module):
         # loaded = torch.load('mean_cov.pt')
         # self.mean = loaded['mean']
         # self.cov = loaded['cov']
-        self.mean = [0]*4
-        self.cov = [0]*4
+        self.mean = mean
+        self.cov = cov
         
         # namespace dict to get the config and then extract it
         namespace = {}
@@ -201,25 +203,25 @@ class ViTSegmentation(nn.Module):
         
         return freq
     
-    def forward(self, x, itr):
+    def forward(self, x):
         feats = self.vit(x)
         
         mh_distances = []
         final_ood_score = 0
         for i in range(len(feats)):
-            if itr==-1:
-                distances = []
-                for feat in feats[i]:
-                    distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
-                mh_distances.append(min(distances))
-                final_ood_score = min(mh_distances)
-            elif itr==0:
-                self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
-            else:
-                self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
-                mean_cpu = [tensor for tensor in self.mean]
-                cov_cpu = [tensor for tensor in self.cov]
-                torch.save({'mean': mean_cpu, 'cov': cov_cpu}, 'mean_cov.pt')
+            # if itr==-1:
+            distances = []
+            for feat in feats[i]:
+                distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
+            mh_distances.append(min(distances))
+            final_ood_score = min(mh_distances)
+            # elif itr==0:
+            #     self.mean[i], self.cov[i] = mh.batch_distribution(feats[i])
+            # else:
+            #     self.mean[i], self.cov[i] = mh.update_global_distribution(self.mean[i], self.cov[i], feats[i], itr)
+            #     mean_cpu = [tensor for tensor in self.mean]
+            #     cov_cpu = [tensor for tensor in self.cov]
+            #     torch.save({'mean': mean_cpu, 'cov': cov_cpu}, 'mean_cov.pt')
 
         decoded = self.decoder(feats, )
         output = torch.nn.functional.interpolate(decoded, size=x.shape[2:], mode="bilinear", align_corners=False)
@@ -227,9 +229,10 @@ class ViTSegmentation(nn.Module):
         freq_x = self.frequency_response(x)
         freq = torch.cat((output, freq_x), dim=1)
         output = self.freq_conv(freq)
-        
+        print(f"mh_distances {len(mh_distances)}: {mh_distances}")
+        print(f"final_ood_score {final_ood_score}")
         in_dist = False if final_ood_score > 20 else True
-        return output
+        return output, mh_distances
 
 # if __name__ == '__main__':
 #     model = ViTSegmentation()
