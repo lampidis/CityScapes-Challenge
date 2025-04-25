@@ -211,7 +211,7 @@ def main(args):
             losses = []
             all_distances = []
             for i, (images, labels) in tqdm(enumerate(valid_dataloader)):
-                
+                if i>1: break
                 labels = convert_to_train_id(labels)  # Convert class IDs to train IDs
                 images, labels = images.to(device), labels.to(device)
                 
@@ -250,7 +250,7 @@ def main(args):
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
 
-            print(f"mean_loaded: min:{[min(all_distances)]} max:{[max(all_distances)]}, mean:{[np.mean(all_distances)]}")
+            print(f"mean_loaded: min:{[min(all_distances)]} max:{[max(all_distances)]}, mean:{[torch.mean(all_distances)]}")
             print(f"validation loss: {valid_loss}")
             
             if valid_loss < best_valid_loss:
