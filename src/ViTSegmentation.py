@@ -214,7 +214,7 @@ class ViTSegmentation(nn.Module):
         for b in range(B):
             # if itr==-1:
             distances = []
-            for i in len(feats):
+            for i in range(len(feats)):
                 distances.append(mh.mahalanobis_distance(feats[i][b], self.mean[i], self.cov[i]))
             print(f"distances len: {len(distances)}")
             mh_distances.append(min(distances))
