@@ -7,7 +7,7 @@ import numpy as np
 import torch.nn.functional as F
 from functools import partial
 import mahalanobis as mh
-from saved_tensors import mean, cov
+# from saved_tensors import mean, cov
 
 # from torchinfo import summary
 
@@ -151,11 +151,11 @@ class ViTSegmentation(nn.Module):
 
         cfg_str = load_config_from_url(head_config_url)
         
-        # loaded = torch.load('mean_cov.pt')
-        # self.mean = loaded['mean']
-        # self.cov = loaded['cov']
-        self.mean = mean
-        self.cov = cov
+        loaded = torch.load('mean_cov.pt')
+        self.mean = loaded['mean']
+        self.cov = loaded['cov']
+        # self.mean = mean
+        # self.cov = cov
         
         # namespace dict to get the config and then extract it
         namespace = {}
