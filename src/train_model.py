@@ -219,6 +219,7 @@ def main(args):
                 
                 outputs, distances = model(images)
                 all_distances = [all_distances, [d.cpu().numpy() for d in distances]]
+                print(f"all_distances len: {len(all_distances)}")
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             

@@ -204,18 +204,19 @@ class ViTSegmentation(nn.Module):
         return freq
     
     def forward(self, x):
+        B, C, h, w = x.shape
         feats = self.vit(x)
         
         mh_distances = []
         final_ood_score = 0
         print(f" feats shape: {feats[0].shape}")
         print(f" feats len: {len(feats)}")
-        for i in range(len(feats)):
+        for b in range(B):
             # if itr==-1:
             distances = []
-            for feat in feats[i]:
-                distances.append(mh.mahalanobis_distance(feat, self.mean[i], self.cov[i]))
-                print(f"distances len: {len(distances)}")
+            for i in len(feats):
+                distances.append(mh.mahalanobis_distance(feats[i][b], self.mean[i], self.cov[i]))
+            print(f"distances len: {len(distances)}")
             mh_distances.append(min(distances))
         final_ood_score = min(mh_distances)
             # elif itr==0:
@@ -232,7 +233,7 @@ class ViTSegmentation(nn.Module):
         freq_x = self.frequency_response(x)
         freq = torch.cat((output, freq_x), dim=1)
         output = self.freq_conv(freq)
-        print(f"mh_distances {len(mh_distances)}: {mh_distances}")
+        print(f"mh_distances {len(mh_distances)}")
         print(f"final_ood_score {final_ood_score}")
         in_dist = False if final_ood_score > 20 else True
         return output, mh_distances
