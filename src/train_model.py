@@ -218,7 +218,7 @@ def main(args):
                 labels = labels.long().squeeze(1)  # Remove channel dimension
                 
                 outputs, distances = model(images)
-                all_distances.append(distances)
+                all_distances = np.concatenate(all_distances, distances)
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
@@ -250,6 +250,7 @@ def main(args):
                 "valid_loss": valid_loss
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
             print(len(all_distances))
+            
             print(f"mean_loaded: min:{min(all_distances)} max:{max(all_distances)}, mean:{sum(all_distances) / len(all_distances)}")
             print(f"threshold {np.percentile(all_distances, 95)}")
             print(f"validation loss: {valid_loss}")
