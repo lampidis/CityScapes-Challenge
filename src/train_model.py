@@ -218,7 +218,7 @@ def main(args):
                 labels = labels.long().squeeze(1)  # Remove channel dimension
                 
                 outputs, distances = model(images)
-                all_distances = [all_distances, distances.cpu().numpy()]
+                all_distances = [all_distances, [d.cpu().numpy() for d in distances]]
                 loss = criterion(outputs, labels)
                 losses.append(loss.item())
             
