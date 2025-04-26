@@ -37,18 +37,6 @@ class AddFrequencyChannelTransform(nn.Module):
         
         return freq
 
-
-class UpsampleConv(nn.Module):
-    def __init__(self, channels):
-        super(UpsampleConv, self).__init__()
-        self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
-
-    def forward(self, x):
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
-        x = self.conv(x)
-        return x
-
-
 class BNHead(nn.Module):
     """Just a batchnorm."""
     def __init__(self, resize_factors=None, num_classes=19):
@@ -57,8 +45,6 @@ class BNHead(nn.Module):
         self.bn = nn.BatchNorm2d(self.in_channels)
         self.in_index = [0, 1, 2, 3]
         
-        # self.upsample1 = UpsampleConv(num_classes)
-        # self.upsample2 = UpsampleConv(num_classes)
         self.conv_seg = nn.Conv2d(self.in_channels, num_classes, kernel_size=1)
         self.resize_factors = resize_factors
 
