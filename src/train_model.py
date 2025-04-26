@@ -253,6 +253,7 @@ def main(args):
             }, step=(epoch + 1) * len(train_dataloader) - 1) if args.wandb_save else None
             
             print(f"mean_loaded: min:{min(all_distances)} max:{max(all_distances)}, mean:{sum(all_distances) / len(all_distances)}")
+            print(f"threshold 95 -> {np.percentile(all_distances, 90)}")
             print(f"threshold 95 -> {np.percentile(all_distances, 95)}")
             print(f"threshold 98 -> {np.percentile(all_distances, 98)}")
             print(f"validation loss: {valid_loss}")
