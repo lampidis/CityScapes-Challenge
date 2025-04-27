@@ -33,8 +33,8 @@ def mahalanobis_distance(x, mean, cov):
     x = x.view(x.size(0), -1)
     x_mean = x.mean(dim=1)
     
-    centered_x = x_mean - mean
+    centered_x = x_mean - mean.to(x_mean.device)
     cov_inv = torch.linalg.pinv(cov)
-    diff = centered_x - mean
+    diff = centered_x - mean.to(x_mean.device)
     mahalanobis = torch.sqrt(diff @ cov_inv @ diff.T)
     return mahalanobis
